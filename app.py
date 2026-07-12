@@ -33,9 +33,9 @@ def api_search():
                 
     return jsonify({"status": "not_found", "message": "חלקה לא נמצאה באזור פרדס חנה"})
 
-@app.route('/')
-def map_home():
-    # יצירת המפה הבטוחה של פרדס חנה
+# נתיב פנימי שמגיש רק את המפה החלקה והנקייה
+@app.route('/map-only')
+def map_only():
     m = folium.Map(location=[32.4833, 34.9833], zoom_start=14, control_scale=True)
     
     if os.path.exists('layers_data.geojson'):
@@ -48,20 +48,21 @@ def map_home():
             tooltip=folium.GeoJsonTooltip(fields=["name"], aliases=["שם נכס/מגרש:"], localize=True),
             popup=folium.GeoJsonPopup(fields=["description"], aliases=["סטטוס משפטי:"], localize=True)
         ).add_to(m)
+        
+    return m._repr_html_()
 
-    m.get_root().html.add_child(folium.Element("<script>window.mymap = null;</script>"))
-    map_html = m._repr_html_()
-    map_html = map_html.replace('var map_', 'window.mymap = map_')
-    map_html = map_html.replace('L.map(\'map_', 'window.mymap = L.map(\'map_')
-
+@app.route('/')
+def map_home():
     premium_file_path = 'karka-premium-2026.html'
     if os.path.exists(premium_file_path):
         with open(premium_file_path, 'r', encoding='utf-8') as f:
             html_page = f.read()
         
-        # הזרקה נקייה ישירות לתוך קובץ הפרימיום
+        # הזרקת אלמנט iframe שמבודד את המפה ומאפשר זום ותנועה חלקים ב-100%
+        iframe_tag = '<iframe src="/map-only" style="width:100%; height:100%; border:none; overflow:hidden;"></iframe>'
+        
         if 'id="mapContainer">' in html_page:
-            html_page = html_page.replace('id="mapContainer">', 'id="mapContainer">' + map_html)
+            html_page = html_page.replace('id="mapContainer">', 'id="mapContainer">' + iframe_tag)
         
         return render_template_string(html_page)
     else:
