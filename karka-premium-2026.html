@@ -1345,27 +1345,20 @@ function renderAnalytics(){
     </div>`;
 }
 
-/* ═══════════════ ניווט ═══════════════ */
+/* ==================== ניווט ==================== */
 document.querySelectorAll(".nav-item").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-    document.getElementById("view-" + btn.dataset.view).classList.add("active");
-    if(btn.dataset.view === "leads") renderLeads();
-    if(btn.dataset.view === "analytics") initAnalytics();
-  /*
-        if(btn.dataset.view === "map"){
-            initMap();
-            setTimeout(() => { if(map) map.invalidateSize(); }, 60);
-        }
-        */
+    btn.addEventListener("click", () => {
+        document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+        document.getElementById("view-" + btn.dataset.view).classList.add("active");
+        
+        if(btn.dataset.view === "leads") renderLeads();
+        if(btn.dataset.view === "analytics") initAnalytics();
     });
 });
- ═══════════════ אתחול ═══════════════ */
+
+/* ==================== אתחול ==================== */
 renderChips();
 renderGrid();
 </script>
-
-</body>
-</html>
