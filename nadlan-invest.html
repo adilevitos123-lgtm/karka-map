@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>קרקע — פלטפורמת מידע למשקיעי נדל"ן</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=David+Libre:wght@400;500;700&family=Assistant:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{
+    --paper:#F1F0EA;
+    --panel:#FFFFFF;
+    --ink:#1C2430;
+    --ink-soft:#565A62;
+    --ink-faint:#8B8E93;
+    --navy:#16212F;
+    --navy-soft:#26364A;
+    --line:#DEDCD2;
+    --line-strong:#C7C4B6;
+    --forest:#1F5C4E;
+    --forest-light:#E4EEEA;
+    --gold:#B8862E;
+    --gold-light:#F6ECD9;
+    --brick:#9C3B2E;
+    --brick-light:#F5E4E0;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Assistant',sans-serif;
+    font-size:15px;
+    line-height:1.5;
+  }
+  h1,h2,h3,.serif{font-family:'David Libre',serif;}
+  a{color:inherit;}
+
+  .app{display:grid;grid-template-columns:220px 1fr;min-height:100vh;}
+
+  /* Sidebar */
+  .sidebar{
+    background:var(--navy);
+    color:#EDEEEC;
+    padding:24px 18px;
+    display:flex;flex-direction:column;
+    gap:28px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-mark{
+    width:34px;height:34px;border-radius:7px;
+    background:var(--gold);color:var(--navy);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'David Libre',serif;font-weight:700;font-size:18px;
+  }
+  .brand-name{font-family:'David Libre',serif;font-size:19px;font-weight:700;}
+  .brand-sub{font-size:11px;color:#9BA3AF;margin-top:1px;}
+
+  nav{display:flex;flex-direction:column;gap:3px;}
+  .nav-item{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 12px;border-radius:8px;
+    color:#C7CCD3;font-size:14px;font-weight:500;
+    cursor:pointer;border:none;background:none;text-align:right;width:100%;
+    font-family:'Assistant',sans-serif;
+  }
+  .nav-item:hover{background:var(--navy-soft);color:#fff;}
+  .nav-item.active{background:var(--navy-soft);color:#fff;}
+  .nav-item .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);opacity:0;flex-shrink:0;}
+  .nav-item.active .dot{opacity:1;}
+
+  .sidebar-footer{
+    margin-top:auto;
+    padding:12px 12px;
+    background:rgba(255,255,255,0.06);
+    border-radius:8px;
+    font-size:11.5px;
+    color:#9BA3AF;
+    line-height:1.6;
+  }
+  .sidebar-footer b{color:#D6D9DD;}
+
+  /* Main */
+  main{padding:26px 32px 60px;max-width:1180px;}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;gap:20px;flex-wrap:wrap;}
+  .topbar h1{font-size:24px;margin:0 0 4px;font-weight:700;}
+  .topbar p{margin:0;color:var(--ink-soft);font-size:13.5px;}
+
+  .search-row{
+    display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;
+  }
+  .search-row input[type=text]{
+    flex:1;min-width:220px;
+    padding:11px 14px;border-radius:8px;border:1px solid var(--line-strong);
+    background:var(--panel);font-family:inherit;font-size:14px;color:var(--ink);
+  }
+  .search-row input[type=text]:focus{outline:2px solid var(--forest);outline-offset:1px;}
+  .search-row button.primary{
+    background:var(--forest);color:#fff;border:none;border-radius:8px;
+    padding:0 20px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;
+  }
+  .search-row button.primary:hover{background:#194a3f;}
+
+  .chips{display:flex;gap:8px;margin-bottom:22px;flex-wrap:wrap;}
+  .chip{
+    padding:6px 13px;border-radius:20px;border:1px solid var(--line-strong);
+    background:var(--panel);font-size:12.5px;font-weight:500;color:var(--ink-soft);
+    cursor:pointer;
+  }
+  .chip.on{background:var(--forest);border-color:var(--forest);color:#fff;}
+
+  .stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;}
+  .stat .num{font-family:'David Libre',serif;font-size:24px;font-weight:700;}
+  .stat .lbl{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;}
+
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:0;overflow:hidden;cursor:pointer;position:relative;transition:border-color .15s;
+  }
+  .card:hover{border-color:var(--forest);}
+  .card-media{
+    height:86px;background:linear-gradient(135deg,#E7E5DA,#DBD8C9);
+    display:flex;align-items:center;justify-content:center;color:#A9A79A;font-size:12px;
+    position:relative;
+  }
+  .stamp{
+    position:absolute;top:8px;left:8px;
+    border:1.5px solid var(--brick);color:var(--brick);
+    font-family:'David Libre',serif;font-weight:700;font-size:10.5px;
+    padding:3px 8px;border-radius:4px;
+    background:rgba(245,228,224,0.92);
+    transform:rotate(-4deg);
+    letter-spacing:0.3px;
+  }
+  .stamp.gold{border-color:var(--gold);color:var(--gold);background:rgba(246,236,217,0.94);}
+  .card-body{padding:13px 14px 14px;}
+  .card-addr{font-weight:600;font-size:14.5px;margin:0 0 2px;}
+  .card-city{font-size:12.5px;color:var(--ink-soft);margin:0 0 10px;}
+  .card-row{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--ink-soft);border-top:1px solid var(--line);padding-top:9px;}
+  .card-price{font-weight:700;color:var(--ink);font-family:'David Libre',serif;font-size:15px;}
+  .badge{font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:5px;}
+  .badge.available{background:var(--forest-light);color:var(--forest);}
+  .badge.distressed{background:var(--brick-light);color:var(--brick);}
+  .badge.presale{background:var(--gold-light);color:var(--gold);}
+
+  /* Detail drawer */
+  .overlay{
+    position:fixed;inset:0;background:rgba(20,24,30,0.42);
+    display:none;align-items:stretch;justify-content:flex-end;z-index:50;
+  }
+  .overlay.show{display:flex;}
+  .drawer{
+    width:min(430px,92vw);background:var(--paper);height:100%;
+    overflow-y:auto;padding:22px 24px 40px;
+    border-left:1px solid var(--line);
+  }
+  .drawer-close{
+    background:none;border:1px solid var(--line-strong);border-radius:7px;
+    width:32px;height:32px;cursor:pointer;font-size:15px;color:var(--ink-soft);
+    float:left;
+  }
+  .drawer h2{font-size:20px;margin:6px 0 2px;}
+  .drawer .sub{color:var(--ink-soft);font-size:13px;margin:0 0 16px;}
+  .mock-flag{
+    background:var(--gold-light);color:#7A5A1F;border:1px solid #E4CE9C;
+    border-radius:7px;padding:9px 12px;font-size:12px;margin-bottom:18px;line-height:1.6;
+  }
+  .mock-flag.warn{background:var(--brick-light);color:#7A2A22;border-color:#E4B3AB;}
+  .intel-kv{padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .intel-kv:last-child{border-bottom:none;}
+  .intel-kv .lbl{color:var(--ink-soft);display:flex;align-items:center;gap:6px;margin-bottom:3px;}
+  .intel-kv .val{font-weight:600;}
+  .intel-kv .val.alert{color:var(--brick);}
+  .intel-note{background:#F7F6F1;border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:12px;line-height:1.55;margin-top:5px;}
+  .src-tag{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:20px;background:var(--forest-light);color:var(--forest);}
+  .src-tag.sensitive{background:var(--brick-light);color:var(--brick);}
+  .section{margin-bottom:20px;}
+  .section h3{font-size:13.5px;color:var(--ink-soft);margin:0 0 8px;font-weight:600;font-family:'Assistant',sans-serif;text-transform:none;}
+  .kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px;}
+  .kv span:first-child{color:var(--ink-soft);}
+  .kv span:last-child{font-weight:600;}
+  .comps-table{width:100%;border-collapse:collapse;font-size:12.8px;}
+  .comps-table th{text-align:right;color:var(--ink-soft);font-weight:600;padding:6px 4px;border-bottom:1px solid var(--line-strong);}
+  .comps-table td{padding:8px 4px;border-bottom:1px solid var(--line);}
+  .add-lead-btn{
+    width:100%;padding:12px;background:var(--forest);color:#fff;border:none;
+    border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-top:6px;
+  }
+  .add-lead-btn:hover{background:#194a3f;}
+  .add-lead-btn.added{background:var(--ink-faint);cursor:default;}
+
+  /* Leads view */
+  .leads-table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+  .leads-table th{text-align:right;background:#F7F6F1;color:var(--ink-soft);font-size:12.5px;font-weight:600;padding:11px 14px;border-bottom:1px solid var(--line);}
+  .leads-table td{padding:11px 14px;font-size:13.5px;border-bottom:1px solid var(--line);}
+  .leads-table tr:last-child td{border-bottom:none;}
+  .empty-leads{
+    background:var(--panel);border:1px dashed var(--line-strong);border-radius:var(--radius);
+    padding:40px 20px;text-align:center;color:var(--ink-soft);font-size:13.5px;
+  }
+  .export-btn{
+    background:var(--panel);border:1px solid var(--line-strong);border-radius:8px;
+    padding:9px 16px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink);
+  }
+  .export-btn:hover{border-color:var(--forest);color:var(--forest);}
+
+  /* Drawer tabs + flip calculator */
+  .tab-row{display:flex;gap:14px;margin-bottom:18px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .tab-btn{
+    background:none;border:none;padding:0 0 10px;font-family:inherit;font-size:12.8px;
+    font-weight:600;color:var(--ink-soft);cursor:pointer;border-bottom:2px solid transparent;
+    margin-bottom:-1px;white-space:nowrap;
+  }
+  .tab-btn.active{color:var(--ink);border-bottom-color:var(--forest);}
+  .flip-score{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;margin-bottom:18px;
+  }
+  .flip-score .flip-profit{font-size:12.5px;color:var(--ink-soft);}
+  .flip-score .roi-num{font-family:'David Libre',serif;font-size:24px;font-weight:700;margin:2px 0;}
+  .flip-score .roi-pct b{font-family:'David Libre',serif;color:var(--ink);}
+  .score-badge{font-family:'David Libre',serif;font-weight:700;font-size:14px;padding:8px 14px;border-radius:8px;white-space:nowrap;}
+  .score-badge.green{background:var(--forest-light);color:var(--forest);}
+  .score-badge.yellow{background:var(--gold-light);color:var(--gold);}
+  .score-badge.red{background:var(--brick-light);color:var(--brick);}
+  .kv.total{border-bottom:none;font-weight:700;padding-top:11px;}
+
+  /* Analytics dashboard */
+  .analytics-controls{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+  .analytics-controls label{font-size:13px;color:var(--ink-soft);font-weight:600;}
+  .analytics-controls select{
+    padding:9px 14px;border-radius:8px;border:1px solid var(--line-strong);
+    background:var(--panel);font-family:inherit;font-size:14px;color:var(--ink);cursor:pointer;min-width:150px;
+  }
+  .analytics-controls select:focus{outline:2px solid var(--forest);outline-offset:1px;}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;}
+  .panel h3{font-size:15px;margin:0 0 3px;font-weight:700;}
+  .panel .panel-sub{font-size:12.5px;color:var(--ink-soft);margin:0 0 16px;}
+  .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px;}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:15px 17px;}
+  .kpi .kpi-num{font-family:'David Libre',serif;font-size:26px;font-weight:700;}
+  .kpi .kpi-lbl{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.4;}
+  .kpi .kpi-trend{font-size:12px;font-weight:600;margin-top:6px;}
+  .kpi .kpi-trend.up{color:var(--forest);}
+  .kpi .kpi-trend.down{color:var(--brick);}
+  .chart-svg{width:100%;height:auto;display:block;}
+  .chart-legend{display:flex;gap:18px;margin-top:10px;font-size:12.5px;color:var(--ink-soft);flex-wrap:wrap;}
+  .chart-legend span{display:inline-flex;align-items:center;gap:6px;}
+  .chart-legend i{width:14px;height:3px;border-radius:2px;display:inline-block;}
+  .cmp-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .cmp-table th{text-align:right;color:var(--ink-soft);font-weight:600;padding:9px 6px;border-bottom:1px solid var(--line-strong);font-size:12.5px;}
+  .cmp-table td{padding:11px 6px;border-bottom:1px solid var(--line);}
+  .cmp-table tr:last-child td{border-bottom:none;}
+  .cmp-table .num{font-family:'David Libre',serif;font-weight:700;}
+  .gap-pill{font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:20px;background:var(--gold-light);color:var(--gold);}
+
+  /* Map view */
+  .map-wrap{height:560px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);}
+  #mapContainer{height:100%;width:100%;background:#E7E5DA;}
+  .map-legend{display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-soft);}
+  .map-legend span{display:inline-flex;align-items:center;gap:6px;}
+  .map-legend i{width:10px;height:10px;border-radius:50%;display:inline-block;}
+
+  .view{display:none;}
+  .view.active{display:block;}
+
+  @media (max-width:760px){
+    .app{grid-template-columns:1fr;}
+    .sidebar{flex-direction:row;overflow-x:auto;padding:14px;}
+    nav{flex-direction:row;}
+    .sidebar-footer{display:none;}
+    main{padding:18px;}
+    .stats-row{grid-template-columns:repeat(2,1fr);}
+    .map-wrap{height:400px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">ק</div>
+      <div>
+        <div class="brand-name">קרקע</div>
+        <div class="brand-sub">מידע למשקיעי נדל"ן</div>
+      </div>
+    </div>
+    <nav>
+      <button class="nav-item active" data-view="search"><span class="dot"></span>חיפוש נכסים</button>
+      <button class="nav-item" data-view="map"><span class="dot"></span>מפת נכסים</button>
+      <button class="nav-item" data-view="analytics"><span class="dot"></span>ניתוח שוק</button>
+      <button class="nav-item" data-view="leads"><span class="dot"></span>רשימת לידים</button>
+      <button class="nav-item" data-view="sources"><span class="dot"></span>מקורות נתונים</button>
+    </nav>
+    <div class="sidebar-footer">
+      <b>גרסת הדגמה.</b> כל הנכסים, הבעלים, העסקאות והמיקומים על המפה המוצגים כאן הם נתוני דוגמה בלבד (מעודכנים לשנת 2026), לצורך המחשת הממשק.
+    </div>
+  </aside>
+
+  <main>
+
+    <!-- SEARCH VIEW -->
+    <section class="view active" id="view-search">
+      <div class="topbar">
+        <div>
+          <h1>חיפוש נכסים</h1>
+          <p>חפש לפי עיר, שכונה או כתובת. סנן לפי סטטוס כדי לאתר הזדמנויות.</p>
+        </div>
+      </div>
+
+      <div class="search-row">
+        <input type="text" id="searchInput" placeholder="לדוגמה: פלורנטין, תל אביב">
+        <button class="primary" onclick="renderProperties()">חיפוש</button>
+      </div>
+
+      <div class="chips" id="chips"></div>
+
+      <div class="stats-row">
+        <div class="stat"><div class="num" id="statCount">0</div><div class="lbl">נכסים בתוצאה</div></div>
+        <div class="stat"><div class="num" id="statDistressed">0</div><div class="lbl">נכסים במצוקה</div></div>
+        <div class="stat"><div class="num" id="statPresale">0</div><div class="lbl">נכסי פריסייל</div></div>
+        <div class="stat"><div class="num" id="statAvgPrice">—</div><div class="lbl">מחיר ממוצע</div></div>
+        <div class="stat"><div class="num" id="statLeads">0</div><div class="lbl">לידים שמורים</div></div>
+      </div>
+
+      <div class="grid" id="propertyGrid"></div>
+    </section>
+
+    <!-- MAP VIEW -->
+    <section class="view" id="view-map">
+      <div class="topbar">
+        <div>
+          <h1>מפת נכסים</h1>
+          <p>פריסה גאוגרפית של כלל הנכסים במאגר, לפי עיר ושכונה.</p>
+        </div>
+      </div>
+      <div class="map-legend">
+        <span><i style="background:var(--forest)"></i>זמין</span>
+        <span><i style="background:var(--brick)"></i>במצוקה</span>
+        <span><i style="background:var(--gold)"></i>פריסייל / טרום-פריסייל</span>
+      </div>
+      <div class="map-wrap"><div id="mapContainer"></div></div>
+    </section>
+
+    <!-- ANALYTICS VIEW -->
+    <section class="view" id="view-analytics">
+      <div class="topbar">
+        <div>
+          <h1>ניתוח שוק</h1>
+          <p>מגמות מחירים, קצב מכירה והשוואת יד שנייה מול קבלן — לפי עיר.</p>
+        </div>
+      </div>
+      <div class="analytics-controls">
+        <label for="citySelect">בחר עיר:</label>
+        <select id="citySelect" onchange="renderAnalytics()"></select>
+      </div>
+      <div id="analyticsBody"></div>
+    </section>
+
+    <!-- LEADS VIEW -->
+    <section class="view" id="view-leads">
+      <div class="topbar">
+        <div>
+          <h1>רשימת לידים</h1>
+          <p>נכסים ששמרת לצורך מעקב ופנייה עתידית.</p>
+        </div>
+        <button class="export-btn" onclick="exportLeads()">ייצוא לקובץ CSV</button>
+      </div>
+      <div id="leadsContainer"></div>
+    </section>
+
+    <!-- SOURCES VIEW -->
+    <section class="view" id="view-sources">
+      <div class="topbar">
+        <div>
+          <h1>מקורות נתונים אמיתיים בישראל</h1>
+          <p>המסמך המלא נמצא בקובץ הנפרד ששיתפתי לצידך. סיכום קצר כאן:</p>
+        </div>
+      </div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px 24px;">
+        <div class="kv"><span>בעלות ופרטי נכס</span><span>רשם המקרקעין (טאבו) — בתשלום לשאילתה</span></div>
+        <div class="kv"><span>היסטוריית עסקאות ומחירים</span><span>נדל"ן.gov.il — פתוח וציבורי</span></div>
+        <div class="kv"><span>שומות מיסוי</span><span>רשות המסים — שירותי שומה</span></div>
+        <div class="kv"><span>הליכי כינוס ועיקול</span><span>הוצאה לפועל, פרסומי כונס נכסים</span></div>
+        <div class="kv"><span>פרטי קשר לבעלים</span><span>לא קיים כמקור ציבורי — דורש מקור נוסף וכפוף לחוק הגנת הפרטיות</span></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="drawer" id="drawer"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const properties = [
+  {id:1,addr:'רחוב פלורנטין 14',city:'תל אביב',type:'דירת 3 חדרים',price:2450000,status:'available',owner:'משפחה פרטית (בעלות יחידה)',lastSale:'2016',lastSaleAmt:1620000,lat:32.0575,lng:34.7688,updated:'2026-01-14',sqm:72,comps:[{a:'פלורנטין 9',p:2380000,d:'0.1 ק"מ'},{a:'וולפסון 22',p:2510000,d:'0.3 ק"מ'},{a:'הרצל 88',p:2290000,d:'0.4 ק"מ'}]},
+  {id:2,addr:'רחוב הרצל 61',city:'חולון',type:'קוטג׳ דו-משפחתי',price:3100000,status:'distressed',distressReason:'ירושה — הליך צו קיום צוואה פתוח',owner:'עיזבון (מספר יורשים)',lastSale:'1994',lastSaleAmt:410000,lat:32.0143,lng:34.7717,updated:'2026-02-03',sqm:140,comps:[{a:'סוקולוב 12',p:2950000,d:'0.2 ק"מ'},{a:'ויצמן 30',p:3220000,d:'0.5 ק"מ'}]},
+  {id:3,addr:'שדרות ירושלים 5',city:'חיפה',type:'דירת גן',price:1680000,status:'distressed',distressReason:'עיקול — רישום הערת אזהרה בהוצאה לפועל',owner:'בעלים פרטי (חוב רשום)',lastSale:'2009',lastSaleAmt:890000,lat:32.8156,lng:34.9892,updated:'2026-01-22',sqm:95,comps:[{a:'הרצל 40',p:1590000,d:'0.3 ק"מ'},{a:'העצמאות 15',p:1740000,d:'0.6 ק"מ'}]},
+  {id:4,addr:'רחוב ביאליק 3',city:'רמת גן',type:'דירת 4 חדרים',price:2980000,status:'available',owner:'משפחה פרטית (בעלות משותפת)',lastSale:'2013',lastSaleAmt:1850000,lat:32.0809,lng:34.8144,updated:'2026-03-05',sqm:98,comps:[{a:'ז׳בוטינסקי 55',p:3050000,d:'0.2 ק"מ'},{a:'ביאליק 9',p:2870000,d:'0.1 ק"מ'}]},
+  {id:5,addr:'רחוב העצמאות 22',city:'באר שבע',type:'דירת 3 חדרים',price:890000,status:'distressed',distressReason:'גירושין — הסכם גירושין הכולל מכירת נכס משותף',owner:'שני בעלים רשומים',lastSale:'2011',lastSaleAmt:520000,lat:31.2489,lng:34.7996,updated:'2026-02-18',sqm:78,comps:[{a:'רגר 18',p:850000,d:'0.4 ק"מ'},{a:'סמילנסקי 6',p:920000,d:'0.3 ק"מ'}]},
+  {id:6,addr:'רחוב אלנבי 112',city:'תל אביב',type:'דירת 2 חדרים',price:2050000,status:'available',owner:'משפחה פרטית',lastSale:'2018',lastSaleAmt:1780000,lat:32.0663,lng:34.7719,updated:'2026-01-30',sqm:55,comps:[{a:'אלנבי 98',p:2010000,d:'0.1 ק"מ'},{a:'נחלת בנימין 20',p:2140000,d:'0.4 ק"מ'}]},
+  {id:7,addr:'שדרות רוטשילד 9',city:'ראשון לציון',type:'פנטהאוז',price:3650000,status:'distressed',distressReason:'ירושה — עדיין לא בוצעה חלוקה בין יורשים',owner:'עיזבון (3 יורשים)',lastSale:'1998',lastSaleAmt:780000,lat:31.9642,lng:34.7756,updated:'2026-02-11',sqm:135,comps:[{a:'הרצל 4',p:3480000,d:'0.3 ק"מ'},{a:'ויצמן 71',p:3790000,d:'0.5 ק"מ'}]},
+  {id:8,addr:'רחוב הנשיא 30',city:'נתניה',type:'דירת 3 חדרים',price:1590000,status:'available',owner:'משפחה פרטית',lastSale:'2015',lastSaleAmt:1120000,lat:32.3244,lng:34.8624,updated:'2026-03-01',sqm:80,comps:[{a:'הרצל 51',p:1540000,d:'0.2 ק"מ'},{a:'ויצמן 12',p:1630000,d:'0.4 ק"מ'}]},
+
+  {id:9,addr:'מגדלי גני העיר, שכונת רמת אשכול',city:'לוד',type:'דירת 4 חדרים (פריסייל)',price:1780000,status:'presale',owner:'חברת הבנייה (שלב טרום-מכירה)',developer:'שיכון ובינוי נדל"ן',presaleStage:'פריסייל פעיל — שלב מכירות מוקדם',expectedDelivery:'2029',pressureIndex:88,lastSale:'2023 (רכישת קרקע)',lastSaleAmt:4200000,lat:31.9612,lng:34.8801,updated:'2026-02-25',sqm:105,comps:[{a:'רמת אשכול, בלוק סמוך',p:1720000,d:'0.2 ק"מ'},{a:'שכונת נאות אילן',p:1830000,d:'0.6 ק"מ'}]},
+  {id:10,addr:'טרום-פריסייל, שכונת נאות אילן (רובע ז)',city:'לוד',type:'דירת 3 חדרים (טרום-פריסייל)',price:1520000,status:'presale',owner:'חברת הבנייה (טרם ניתן היתר)',developer:'אפי קפיטל',presaleStage:'טרום-פריסייל — טרם ניתן היתר בנייה',expectedDelivery:'2030',pressureIndex:92,lastSale:'2024 (רכישת קרקע)',lastSaleAmt:3600000,lat:31.9670,lng:34.8930,updated:'2026-03-10',sqm:78,comps:[{a:'רובע ז, שלב א',p:1460000,d:'0.3 ק"מ'},{a:'שכונת גני יער',p:1610000,d:'0.9 ק"מ'}]},
+  {id:11,addr:'שדרות בן גוריון, פרויקט חדש',city:'לוד',type:'פנטהאוז (פריסייל)',price:2350000,status:'presale',owner:'חברת הבנייה (שלב טרום-מכירה)',developer:'רוטשטיין נדל"ן',presaleStage:'פריסייל פעיל — שלב מכירות מוקדם',expectedDelivery:'2028',pressureIndex:81,lastSale:'2022 (רכישת קרקע)',lastSaleAmt:5100000,lat:31.9560,lng:34.8760,updated:'2026-01-19',sqm:140,comps:[{a:'בן גוריון, בלוק סמוך',p:2260000,d:'0.2 ק"מ'},{a:'מרכז העיר',p:2410000,d:'0.7 ק"מ'}]},
+  {id:12,addr:'טרום-פריסייל, שכונת אחיסמך',city:'לוד',type:'דירת 5 חדרים (טרום-פריסייל)',price:1990000,status:'presale',owner:'חברת הבנייה (טרם ניתן היתר)',developer:'אזורים',presaleStage:'טרום-פריסייל — טרם ניתן היתר בנייה',expectedDelivery:'2029',pressureIndex:76,lastSale:'2023 (רכישת קרקע)',lastSaleAmt:4400000,lat:31.9445,lng:34.9005,updated:'2026-02-08',sqm:128,comps:[{a:'אחיסמך, שלב קודם',p:1920000,d:'0.3 ק"מ'},{a:'שכונת רמת אשכול',p:2050000,d:'1.1 ק"מ'}]},
+  {id:13,addr:'רחוב הרצל 8',city:'לוד',type:'דירת 2 חדרים',price:780000,status:'distressed',distressReason:'עיקול — חוב פרטי רשום בהוצאה לפועל',owner:'בעלים פרטי (חוב רשום)',lastSale:'2010',lastSaleAmt:350000,lat:31.9505,lng:34.8890,updated:'2026-01-27',sqm:52,comps:[{a:'רחוב ויצמן, לוד',p:750000,d:'0.3 ק"מ'},{a:'העיר העתיקה',p:820000,d:'0.4 ק"מ'}]},
+
+  {id:14,addr:'רובע גימל',city:'באר שבע',type:'דירת 4 חדרים',price:990000,status:'distressed',distressReason:'כינוס נכסים — הליך הוצאה לפועל בעקבות חוב משכנתא לבנק, מכירה בפיקוח כונס',owner:'כונס נכסים מטעם בית המשפט המחוזי',lastSale:'2017',lastSaleAmt:850000,lat:31.2610,lng:34.7838,updated:'2026-02-14',sqm:95,comps:[{a:'רובע גימל, בלוק סמוך',p:960000,d:'0.2 ק"מ'},{a:'רובע דלת',p:1030000,d:'0.6 ק"מ'}]},
+  {id:15,addr:'שכונת רמות',city:'באר שבע',type:'קוטג׳ דו-משפחתי',price:1350000,status:'distressed',distressReason:'כינוס נכסים — מונה כונס נכסים מטעם הבנק בעקבות פיגור בהחזרי משכנתא',owner:'כונס נכסים (מונה ע"י בית המשפט)',lastSale:'2015',lastSaleAmt:1080000,lat:31.2690,lng:34.7770,updated:'2026-03-02',sqm:150,comps:[{a:'רמות ב׳',p:1310000,d:'0.3 ק"מ'},{a:'רמות ד׳',p:1400000,d:'0.5 ק"מ'}]},
+  {id:16,addr:'שכונת נווה זאב',city:'באר שבע',type:'דירת 3 חדרים',price:870000,status:'available',owner:'משפחה פרטית',lastSale:'2019',lastSaleAmt:640000,lat:31.2340,lng:34.8110,updated:'2026-01-09',sqm:75,comps:[{a:'נווה זאב, בלוק סמוך',p:840000,d:'0.2 ק"מ'},{a:'שכונת נאות לון',p:900000,d:'0.7 ק"מ'}]},
+  {id:17,addr:'מרכז העיר העתיק',city:'באר שבע',type:'דירת גג',price:640000,status:'distressed',distressReason:'כינוס נכסים — הליך הוצאה לפועל מטעם בנק, פרסום מכירה פומבית',owner:'כונס נכסים מטעם בית המשפט',lastSale:'2008',lastSaleAmt:310000,lat:31.2455,lng:34.7995,updated:'2026-02-20',sqm:85,comps:[{a:'העיר העתיקה, רחוב סמוך',p:610000,d:'0.1 ק"מ'},{a:'שכונת ג׳',p:670000,d:'0.5 ק"מ'}]},
+
+  {id:18,addr:'שכונת אפרידר',city:'אשקלון',type:'דירת 3 חדרים',price:1120000,status:'available',owner:'משפחה פרטית',lastSale:'2016',lastSaleAmt:780000,lat:31.6598,lng:34.5688,updated:'2026-01-25',sqm:80,comps:[{a:'אפרידר, בלוק סמוך',p:1080000,d:'0.2 ק"מ'},{a:'שכונת שמשון',p:1160000,d:'0.5 ק"מ'}]},
+  {id:19,addr:'שכונת מגדל',city:'אשקלון',type:'דירת גן',price:1340000,status:'distressed',distressReason:'ירושה — הליך צו ירושה פתוח בין שני יורשים',owner:'עיזבון (2 יורשים)',lastSale:'2002',lastSaleAmt:480000,lat:31.6790,lng:34.5825,updated:'2026-02-06',sqm:90,comps:[{a:'העיר הלבנה',p:1290000,d:'0.3 ק"מ'},{a:'מגדל, רחוב סמוך',p:1380000,d:'0.2 ק"מ'}]},
+  {id:20,addr:'שכונת עיר גנים',city:'אשקלון',type:'דירת 4 חדרים',price:1050000,status:'distressed',distressReason:'עיקול — הערת אזהרה בהוצאה לפועל בגין חוב פרטי',owner:'בעלים פרטי (חוב רשום)',lastSale:'2012',lastSaleAmt:700000,lat:31.6510,lng:34.5945,updated:'2026-03-08',sqm:100,comps:[{a:'עיר גנים, בלוק סמוך',p:1010000,d:'0.2 ק"מ'},{a:'שכונת דרום',p:1090000,d:'0.6 ק"מ'}]},
+
+  {id:21,addr:'רחוב הרצל, שכונת הדר',city:'חיפה',type:'דירת 3 חדרים',price:980000,status:'distressed',distressReason:'ירושה — עיזבון בניהול, טרם חולק בין 4 יורשים',owner:'עיזבון (4 יורשים)',lastSale:'1991',lastSaleAmt:210000,lat:32.8115,lng:34.9910,updated:'2026-01-17',sqm:75,comps:[{a:'הדר, רחוב סמוך',p:940000,d:'0.2 ק"מ'},{a:'שכונת נווה שאנן',p:1010000,d:'1.2 ק"מ'}]},
+  {id:22,addr:'שכונת כרמל מרכזי',city:'חיפה',type:'דירת 5 חדרים',price:2150000,status:'distressed',distressReason:'ירושה — צוואה בהליכי אימות בבית משפט לענייני משפחה',owner:'עיזבון (בת יחידה, ממתינה לצו קיום צוואה)',lastSale:'1988',lastSaleAmt:260000,lat:32.7935,lng:34.9885,updated:'2026-02-28',sqm:130,comps:[{a:'כרמל מרכזי, רחוב סמוך',p:2080000,d:'0.2 ק"מ'},{a:'כרמל צרפתי',p:2260000,d:'0.5 ק"מ'}]},
+  {id:23,addr:'שכונת נווה שאנן',city:'חיפה',type:'דירת 2 חדרים',price:890000,status:'available',owner:'משפחה פרטית',lastSale:'2020',lastSaleAmt:720000,lat:32.7810,lng:35.0010,updated:'2026-01-05',sqm:58,comps:[{a:'נווה שאנן, בלוק סמוך',p:860000,d:'0.2 ק"מ'},{a:'שכונת עדן',p:920000,d:'0.6 ק"מ'}]}
+];
+
+// ── שכבת "מודיעין נכס מורחב" ──────────────────────────────────────────
+// מעשירה כל נכס בשדות דאטה נוספים לצורך הדגמת הממשק. חשוב: אלו נתוני דוגמה
+// מיוצרים בקוד, ולא נשלפים ממקור אמיתי. ראו הערת התאימות בתוך הטאב.
+function fmtHeDate(iso){ // '2026-05-14' -> '14/05/2026'
+  const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`;
+}
+function heirsFromOwner(owner){
+  const m = owner.match(/(\d+)\s*יורשים/);
+  if(m) return parseInt(m[1],10);
+  if(owner.includes('בת יחידה')) return 1;
+  if(owner.includes('מספר יורשים')) return 3;
+  return 2;
+}
+properties.forEach(p=>{
+  // 1) צריכת מים (מקור לא-ציבורי — ראו הערת תאימות): אינדיקציה לנכס ריק
+  let water, waterFlag=false;
+  if(p.status==='presale'){ water='אין (נכס בבנייה)'; }
+  else if(p.status==='available'){ water='תקינה'; }
+  else if(p.distressReason && p.distressReason.includes('ירושה')){ water='נמוכה מאוד (נכס ריק זמן ממושך)'; waterFlag=true; }
+  else if(p.distressReason && p.distressReason.includes('כינוס')){ water='אפסית (הנכס ננעל בהליך כינוס)'; waterFlag=true; }
+  else { water='נמוכה (אינדיקציה אפשרית לנכס לא מאויש)'; waterFlag=true; }
+
+  // 2) רשם הירושות (פרסום ציבורי בילקוט הפרסומים): תאריך בקשה ומספר יורשים
+  let inheritance=null;
+  if(p.distressReason && p.distressReason.includes('ירושה')){
+    inheritance={
+      requestDate: fmtHeDate(p.updated),
+      heirsCount: heirsFromOwner(p.owner),
+      status: p.distressReason.includes('טרם') || p.distressReason.includes('פתוח') || p.distressReason.includes('אימות')
+              ? 'בקשה פתוחה — בהמתנה לצו/התנגדויות' : 'צו ירושה/קיום צוואה ניתן'
+    };
+  }
+
+  // 3) מדד לחץ קבלנים (למ"ס/משרד השיכון): מלאי חנוק ומבצעי מימון אגרסיביים
+  let contractorStress=null;
+  if(p.status==='presale'){
+    const chokedByCity={'לוד':'מעל 3,100 דירות חדשות לא מכורות — "מלאי חנוק"'};
+    contractorStress={
+      cityInventory: chokedByCity[p.city] || 'מלאי דירות חדשות לא מכורות מעל הממוצע הארצי',
+      financingCampaign: p.pressureIndex>=85
+        ? 'מבצע 15/85 · פטור מהצמדה למדד תשומות הבנייה · סבסוד ריבית — אינדיקציה להנחה סמויה'
+        : 'הטבות מימון והנחות סמויות במשרד המכירות'
+    };
+  }
+
+  // 4) סטטוס מול הרשות המקומית (ארנונה / GIS עירוני)
+  let municipal;
+  if(p.status==='presale'){ municipal='היתר בנייה ואכלוס מותנים בהתקדמות הפרויקט'; }
+  else if(p.status==='available'){ municipal='ללא חריגות רשומות'; }
+  else if(p.distressReason && p.distressReason.includes('כינוס')){ municipal='חוב ארנונה תחת הליך כינוס משפטי'; }
+  else if(p.distressReason && p.distressReason.includes('עיקול')){ municipal='עיקול/הערת אזהרה רשומה על זכויות הנכס'; }
+  else if(p.distressReason && p.distressReason.includes('ירושה')){ municipal='ייתכן פטור ארנונה זמני בשל נכס ריק'; }
+  else { municipal='חוב ארנונה בבירור מול הרשות המקומית'; }
+
+  p.intel={water, waterFlag, inheritance, contractorStress, municipal};
+});
+
+// שנות ציר ה-X לגרף מגמת המחיר (עד אמצע 2026)
+const marketYears = ['2019','2020','2021','2022','2023','2024','2025','2026 (אמצע)'];
+
+// נתוני שוק לדוגמה (₪ למ"ר ממוצע), קצב מכירה והשוואת יד2/קבלן — לכל עיר
+const marketData = {
+  'תל אביב':      {pricePerSqm:[41000,43500,48000,54000,52500,53500,55500,57000], hoods:[{name:'פלורנטין',days:38},{name:'הצפון הישן',days:52},{name:'לב העיר',days:44}], secondHand:52000, newBuild:63000},
+  'רמת גן':       {pricePerSqm:[28000,29500,33000,37500,36500,37200,38500,39800], hoods:[{name:'מרכז',days:47},{name:'שכונת הגפן',days:55},{name:'רמת חן',days:61}], secondHand:37500, newBuild:45500},
+  'חולון':        {pricePerSqm:[22000,23000,25500,29000,28200,28800,29800,30600], hoods:[{name:'מרכז',days:58},{name:'קרית שרת',days:66},{name:'ג\'סי כהן',days:74}], secondHand:28500, newBuild:35000},
+  'ראשון לציון':  {pricePerSqm:[23000,24200,27000,30500,29800,30400,31500,32400], hoods:[{name:'רמב\'ם',days:54},{name:'נחלת יהודה',days:62},{name:'קרית ראשון',days:49}], secondHand:30500, newBuild:37500},
+  'נתניה':        {pricePerSqm:[19000,20000,22500,26000,25400,26000,27000,27900], hoods:[{name:'עיר ימים',days:45},{name:'קרית נורדאו',days:63},{name:'מרכז',days:70}], secondHand:26000, newBuild:33000},
+  'חיפה':         {pricePerSqm:[13500,14000,15500,17800,17400,17900,18600,19200], hoods:[{name:'הדר',days:82},{name:'כרמל מרכזי',days:57},{name:'נווה שאנן',days:68}], secondHand:17500, newBuild:23500},
+  'באר שבע':      {pricePerSqm:[8500,9000,10200,12000,11700,12100,12700,13200], hoods:[{name:'רובע ג\'',days:71},{name:'רמות',days:59},{name:'נווה זאב',days:64}], secondHand:12000, newBuild:16800},
+  'אשקלון':       {pricePerSqm:[13000,13800,15600,18200,17800,18300,19100,19800], hoods:[{name:'אפרידר',days:56},{name:'מרינה',days:48},{name:'עיר גנים',days:69}], secondHand:18000, newBuild:24500},
+  'לוד':          {pricePerSqm:[11000,11600,13200,15500,15200,15900,16900,17800], hoods:[{name:'רמת אשכול',days:52},{name:'נאות אילן',days:44},{name:'אחיסמך',days:61}], secondHand:16500, newBuild:22000}
+};
+
+let activeChip = 'all';
+let leads = [];
+let map, markersLayer;
+let currentDrawerId = null;
+let drawerTab = 'details';
+
+const chipsDef = [
+  {key:'all',label:'כל הנכסים'},
+  {key:'available',label:'זמינים'},
+  {key:'distressed',label:'במצוקה'},
+  {key:'presale',label:'פריסייל'}
+];
+
+function fmt(n){ return '₪' + n.toLocaleString('he-IL'); }
+function statusLabel(status){
+  if(status==='distressed') return 'במצוקה';
+  if(status==='presale') return 'פריסייל';
+  return 'זמין';
+}
+
+function renderChips(){
+  const el = document.getElementById('chips');
+  el.innerHTML = chipsDef.map(c =>
+    `<button class="chip ${activeChip===c.key?'on':''}" onclick="setChip('${c.key}')">${c.label}</button>`
+  ).join('');
+}
+function setChip(key){ activeChip = key; renderChips(); renderProperties(); }
+
+function renderProperties(){
+  const q = document.getElementById('searchInput').value.trim();
+  let list = properties.filter(p => {
+    const matchesQuery = !q || p.addr.includes(q) || p.city.includes(q);
+    const matchesChip = activeChip==='all' || p.status===activeChip;
+    return matchesQuery && matchesChip;
+  });
+
+  document.getElementById('statCount').textContent = list.length;
+  document.getElementById('statDistressed').textContent = list.filter(p=>p.status==='distressed').length;
+  document.getElementById('statPresale').textContent = list.filter(p=>p.status==='presale').length;
+  document.getElementById('statAvgPrice').textContent = list.length ? fmt(Math.round(list.reduce((s,p)=>s+p.price,0)/list.length)) : '—';
+  document.getElementById('statLeads').textContent = leads.length;
+
+  document.getElementById('propertyGrid').innerHTML = list.map(p => `
+    <div class="card" onclick="openDrawer(${p.id})">
+      <div class="card-media">
+        ${p.status==='distressed' ? `<div class="stamp">במצוקה</div>` : ''}
+        ${p.status==='presale' ? `<div class="stamp gold">${p.presaleStage && p.presaleStage.includes('טרום') ? 'טרום-פריסייל' : 'פריסייל'}</div>` : ''}
+        תצוגת נכס
+      </div>
+      <div class="card-body">
+        <p class="card-addr">${p.addr}</p>
+        <p class="card-city">${p.city} · ${p.type}</p>
+        <div class="card-row">
+          <span class="card-price">${fmt(p.price)}</span>
+          <span class="badge ${p.status}">${statusLabel(p.status)}</span>
+        </div>
+      </div>
+    </div>
+  `).join('') || `<div class="empty-leads">לא נמצאו נכסים התואמים את החיפוש.</div>`;
+}
+
+function calcFlip(p){
+  const purchasePrice = p.price;
+  const renovationCost = p.sqm * 2500;
+  const purchaseTax = Math.round(purchasePrice * 0.08);
+  const agentLegalFees = Math.round(purchasePrice * 0.03);
+  const totalCost = purchasePrice + renovationCost + purchaseTax + agentLegalFees;
+  const arv = (p.comps && p.comps.length) ? Math.round(p.comps.reduce((s,c)=>s+c.p,0)/p.comps.length) : purchasePrice;
+  const netProfit = arv - totalCost;
+  const roi = totalCost > 0 ? (netProfit/totalCost*100) : 0;
+  let score, scoreLabel;
+  if(roi >= 15){ score='green'; scoreLabel='עסקה טובה'; }
+  else if(roi >= 5){ score='yellow'; scoreLabel='עסקה גבולית'; }
+  else { score='red'; scoreLabel='לא כדאי'; }
+  return {purchasePrice, renovationCost, purchaseTax, agentLegalFees, totalCost, arv, netProfit, roi, score, scoreLabel};
+}
+
+function setDrawerTab(tab){ drawerTab = tab; renderDrawer(); }
+
+function renderDrawer(){
+  const p = properties.find(x=>x.id===currentDrawerId);
+  if(!p) return;
+  const isLead = leads.some(l=>l.id===p.id);
+  const compsRows = p.comps.map(c=>`<tr><td>${c.a}</td><td>${c.d}</td><td>${fmt(c.p)}</td></tr>`).join('');
+
+  const detailsHtml = `
+    <div class="mock-flag">כל הפרטים בכרטיס זה — כולל בעלות, מצב משפטי, עסקאות ומיקום על המפה — הם נתוני דוגמה להמחשת הממשק, ואינם מבוססים על נכס אמיתי.</div>
+
+    ${p.status==='distressed' ? `
+    <div class="section">
+      <h3>סטטוס מצוקה</h3>
+      <div class="kv"><span>סיבה</span><span>${p.distressReason}</span></div>
+    </div>` : ''}
+
+    ${p.status==='presale' ? `
+    <div class="section">
+      <h3>סטטוס פריסייל</h3>
+      <div class="kv"><span>שלב</span><span>${p.presaleStage}</span></div>
+      <div class="kv"><span>יזם / קבלן</span><span>${p.developer}</span></div>
+      <div class="kv"><span>מסירה משוערת</span><span>${p.expectedDelivery}</span></div>
+      <div class="kv"><span>מדד לחץ קבלנים</span><span>${p.pressureIndex}/100${p.pressureIndex>=75?' — גבוה':''}</span></div>
+    </div>` : ''}
+
+    <div class="section">
+      <h3>בעלות</h3>
+      <div class="kv"><span>בעלים רשום</span><span>${p.owner}</span></div>
+      <div class="kv"><span>${p.status==='presale' ? 'רכישת קרקע ע"י היזם' : 'עסקה אחרונה'}</span><span>${p.lastSale}</span></div>
+      <div class="kv"><span>${p.status==='presale' ? 'מחיר רכישת הקרקע' : 'מחיר עסקה אחרונה'}</span><span>${fmt(p.lastSaleAmt)}</span></div>
+    </div>
+
+    <div class="section">
+      <h3>הערכת שווי</h3>
+      <div class="kv"><span>הערכה נוכחית</span><span>${fmt(p.price)}</span></div>
+      <div class="kv"><span>גודל הנכס</span><span>${p.sqm} מ"ר</span></div>
+      <div class="kv"><span>עודכן לאחרונה</span><span>${p.updated}</span></div>
+    </div>
+
+    <div class="section">
+      <h3>נכסים דומים באזור</h3>
+      <table class="comps-table">
+        <tr><th>כתובת</th><th>מרחק</th><th>מחיר</th></tr>
+        ${compsRows}
+      </table>
+    </div>
+  `;
+
+  const f = calcFlip(p);
+  const flipHtml = `
+    <div class="flip-score">
+      <div>
+        <div class="flip-profit">רווח נקי צפוי</div>
+        <div class="roi-num" style="color:${f.netProfit>=0?'var(--forest)':'var(--brick)'}">${fmt(f.netProfit)}</div>
+        <div class="flip-profit roi-pct">תשואה על ההשקעה (ROI): <b>${f.roi.toFixed(1)}%</b></div>
+      </div>
+      <div class="score-badge ${f.score}">${f.scoreLabel}</div>
+    </div>
+
+    <div class="section">
+      <h3>הנחות יסוד לחישוב</h3>
+      <div class="kv"><span>גודל הנכס</span><span>${p.sqm} מ"ר</span></div>
+      <div class="kv"><span>עלות שיפוץ למ"ר</span><span>${fmt(2500)}</span></div>
+      <div class="kv"><span>שווי שוק לאחר שיפוץ (הערכה, לפי עסקאות דומות)</span><span>${fmt(f.arv)}</span></div>
+    </div>
+
+    <div class="section">
+      <h3>פירוט עלויות</h3>
+      <div class="kv"><span>עלות רכישה מוצעת (מחיר מטרה)</span><span>${fmt(f.purchasePrice)}</span></div>
+      <div class="kv"><span>עלות שיפוץ משוערת (${p.sqm} מ"ר × ₪2,500)</span><span>${fmt(f.renovationCost)}</span></div>
+      <div class="kv"><span>מס רכישה (8%, דירה שנייה)</span><span>${fmt(f.purchaseTax)}</span></div>
+      <div class="kv"><span>תיווך + עו"ד (3%)</span><span>${fmt(f.agentLegalFees)}</span></div>
+      <div class="kv total"><span>סה"כ עלות כוללת</span><span>${fmt(f.totalCost)}</span></div>
+    </div>
+
+    <div class="mock-flag">חישוב זה הוא הדגמה בלבד המבוססת על הנחות כלליות (מס רכישה 8% לדירה שנייה, שיפוץ ₪2,500 למ"ר, תיווך+עו"ד 3%) ואינה מהווה ייעוץ פיננסי, משפטי או מיסויי.</div>
+  `;
+
+  const it = p.intel;
+  const intelHtml = `
+    <div class="section">
+      <h3>מים · איתור נכס ריק / נטוש</h3>
+      <div class="intel-kv">
+        <div class="lbl">מדד צריכת מים <span class="src-tag sensitive">מקור רגיש</span></div>
+        <div class="val ${it.waterFlag?'alert':''}">${it.water}</div>
+        ${it.waterFlag ? `<div class="intel-note">צריכה אפסית/נמוכה לאורך זמן היא אינדיקציה אפשרית לנכס לא מאויש — מועמד ל-Fix &amp; Flip.</div>` : ''}
+      </div>
+    </div>
+
+    ${it.inheritance ? `
+    <div class="section">
+      <h3>רשם הירושות · פרסום עיזבון</h3>
+      <div class="intel-kv">
+        <div class="lbl">סטטוס הליך <span class="src-tag">פרסום ציבורי</span></div>
+        <div class="val">${it.inheritance.status}</div>
+      </div>
+      <div class="kv"><span>תאריך הגשת/פרסום הבקשה</span><span>${it.inheritance.requestDate}</span></div>
+      <div class="kv"><span>מספר יורשים רשומים</span><span>${it.inheritance.heirsCount}</span></div>
+    </div>` : ''}
+
+    ${it.contractorStress ? `
+    <div class="section">
+      <h3>מדד לחץ קבלנים · מלאי חנוק</h3>
+      <div class="intel-kv">
+        <div class="lbl">היקף מלאי בעיר <span class="src-tag">למ"ס / משרד השיכון</span></div>
+        <div class="val ${p.pressureIndex>=85?'alert':''}">${it.contractorStress.cityInventory}</div>
+      </div>
+      <div class="intel-kv">
+        <div class="lbl">מבצע מימון במשרד המכירות</div>
+        <div class="val">${it.contractorStress.financingCampaign}</div>
+      </div>
+      <div class="kv"><span>מדד לחץ קבלנים</span><span>${p.pressureIndex}/100${p.pressureIndex>=75?' — גבוה':''}</span></div>
+    </div>` : ''}
+
+    <div class="section">
+      <h3>רשות מקומית · ארנונה ו-GIS</h3>
+      <div class="intel-kv">
+        <div class="lbl">מצב מוניציפלי <span class="src-tag">עירייה</span></div>
+        <div class="val">${it.municipal}</div>
+      </div>
+    </div>
+
+    <div class="mock-flag warn">
+      <b>הערת נתונים ותאימות:</b> חלק מהשכבות כאן נשענות על מקורות בעלי רגישות שונה.
+      עסקאות, פרסומי כונס נכסים ופרסומי רשם הירושות (ילקוט הפרסומים) הם <b>ציבוריים</b>.
+      לעומת זאת, <b>צריכת מים לכתובת ספציפית איננה מידע ציבורי</b> — היא מוחזקת בידי תאגידי המים,
+      והצלבתה לצורך איתור ופנייה יזומה לאדם כפופה לחוק הגנת הפרטיות (ובמיוחד תיקון 13, 2025).
+      כל הנתונים בכרטיס זה הם דוגמה מיוצרת בלבד; שילוב אמיתי דורש חוות דעת משפטית לפני הפעלה.
+    </div>
+  `;
+
+  const tabHtml = drawerTab==='details' ? detailsHtml : drawerTab==='flip' ? flipHtml : intelHtml;
+
+  document.getElementById('drawer').innerHTML = `
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    <div style="clear:both;"></div>
+    <h2>${p.addr}</h2>
+    <p class="sub">${p.city} · ${p.type}</p>
+
+    <div class="tab-row">
+      <button class="tab-btn ${drawerTab==='details'?'active':''}" onclick="setDrawerTab('details')">פרטי נכס</button>
+      <button class="tab-btn ${drawerTab==='flip'?'active':''}" onclick="setDrawerTab('flip')">מחשבון פליפ (Fix &amp; Flip)</button>
+      <button class="tab-btn ${drawerTab==='intel'?'active':''}" onclick="setDrawerTab('intel')">מודיעין נכס מורחב</button>
+    </div>
+
+    ${tabHtml}
+
+    <button class="add-lead-btn ${isLead?'added':''}" id="addLeadBtn" onclick="addLead(${p.id})" ${isLead?'disabled':''}>
+      ${isLead ? 'נוסף לרשימת הלידים' : 'הוסף לרשימת לידים'}
+    </button>
+  `;
+}
+
+function openDrawer(id){
+  currentDrawerId = id;
+  drawerTab = 'details';
+  renderDrawer();
+  document.getElementById('overlay').classList.add('show');
+}
+function closeDrawer(){ document.getElementById('overlay').classList.remove('show'); }
+
+function addLead(id){
+  if(!leads.some(l=>l.id===id)){
+    const p = properties.find(x=>x.id===id);
+    leads.push(p);
+  }
+  renderProperties();
+  renderLeads();
+  renderDrawer();
+}
+
+function renderLeads(){
+  const el = document.getElementById('leadsContainer');
+  if(!leads.length){
+    el.innerHTML = `<div class="empty-leads">עדיין לא הוספת נכסים לרשימת הלידים.<br>לחץ על נכס בעמוד החיפוש כדי לשמור אותו כאן.</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <table class="leads-table">
+      <tr><th>כתובת</th><th>עיר</th><th>סטטוס</th><th>מחיר</th><th>בעלים</th></tr>
+      ${leads.map(p=>`
+        <tr>
+          <td>${p.addr}</td>
+          <td>${p.city}</td>
+          <td><span class="badge ${p.status}">${statusLabel(p.status)}</span></td>
+          <td>${fmt(p.price)}</td>
+          <td>${p.owner}</td>
+        </tr>
+      `).join('')}
+    </table>
+  `;
+}
+
+function exportLeads(){
+  if(!leads.length){ alert('הוסף לפחות ליד אחד לפני הייצוא.'); return; }
+  const header = 'כתובת,עיר,סטטוס,מחיר,בעלים\n';
+  const rows = leads.map(p=>`${p.addr},${p.city},${statusLabel(p.status)},${p.price},${p.owner}`).join('\n');
+  const blob = new Blob(['﻿'+header+rows], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'leads.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function initMap(){
+  if(map) return;
+  map = L.map('mapContainer', {scrollWheelZoom:true}).setView([31.9, 34.85], 8);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 18
+  }).addTo(map);
+  markersLayer = L.layerGroup().addTo(map);
+  renderMapMarkers();
+}
+
+function renderMapMarkers(){
+  markersLayer.clearLayers();
+  const colors = {available:'#1F5C4E', distressed:'#9C3B2E', presale:'#B8862E'};
+  properties.forEach(p=>{
+    const marker = L.circleMarker([p.lat, p.lng], {
+      radius: 8, color:'#fff', weight:1.5, fillColor: colors[p.status], fillOpacity:0.9
+    }).addTo(markersLayer);
+    marker.bindPopup(`<b>${p.addr}</b><br>${p.city} · ${p.type}<br>${fmt(p.price)}`);
+    marker.on('click', ()=>openDrawer(p.id));
+  });
+}
+
+function initAnalytics(){
+  const sel = document.getElementById('citySelect');
+  if(sel.options.length) return; // כבר אותחל
+  const cities = Object.keys(marketData);
+  sel.innerHTML = cities.map(c=>`<option value="${c}">${c}</option>`).join('');
+  sel.value = 'לוד';
+  renderAnalytics();
+}
+
+// גרף קווי SVG למגמת המחיר למ"ר
+function lineChart(years, values){
+  const W=680, H=260, padL=64, padR=20, padT=20, padB=42;
+  const plotW = W-padL-padR, plotH = H-padT-padB;
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = (max-min) || 1;
+  // ריפוד של 8% מעל ומתחת
+  const yMin = min - range*0.12, yMax = max + range*0.12;
+  const yRange = yMax - yMin;
+  const x = i => padL + (plotW * i/(years.length-1));
+  const y = v => padT + plotH * (1 - (v-yMin)/yRange);
+
+  // קווי סרגל אופקיים + תוויות ציר Y
+  const ticks = 4;
+  let gridLines = '', yLabels = '';
+  for(let t=0;t<=ticks;t++){
+    const val = yMin + (yRange*t/ticks);
+    const yy = y(val);
+    gridLines += `<line x1="${padL}" y1="${yy.toFixed(1)}" x2="${W-padR}" y2="${yy.toFixed(1)}" stroke="#E4E2D8" stroke-width="1"/>`;
+    yLabels += `<text x="${padL-10}" y="${(yy+4).toFixed(1)}" text-anchor="end" font-size="11" fill="#8B8E93">₪${Math.round(val).toLocaleString('he-IL')}</text>`;
+  }
+  // תוויות ציר X
+  let xLabels = '';
+  years.forEach((yr,i)=>{
+    xLabels += `<text x="${x(i).toFixed(1)}" y="${H-padB+20}" text-anchor="middle" font-size="10.5" fill="#8B8E93">${yr}</text>`;
+  });
+  // קו המגמה + אזור מתחתיו
+  const pts = values.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+  const linePath = 'M' + pts.join(' L');
+  const areaPath = `M${x(0).toFixed(1)},${(padT+plotH).toFixed(1)} L` + pts.join(' L') + ` L${x(years.length-1).toFixed(1)},${(padT+plotH).toFixed(1)} Z`;
+  const dots = values.map((v,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5" fill="#1F5C4E" stroke="#fff" stroke-width="1.5"/>`).join('');
+
+  return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="מגמת מחיר למטר רבוע">
+    ${gridLines}
+    <path d="${areaPath}" fill="rgba(31,92,78,0.08)"/>
+    <path d="${linePath}" fill="none" stroke="#1F5C4E" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}
+    ${yLabels}
+    ${xLabels}
+  </svg>`;
+}
+
+function renderAnalytics(){
+  const city = document.getElementById('citySelect').value;
+  const d = marketData[city];
+  if(!d){ document.getElementById('analyticsBody').innerHTML = ''; return; }
+
+  const first = d.pricePerSqm[0];
+  const last = d.pricePerSqm[d.pricePerSqm.length-1];
+  const totalGrowth = ((last-first)/first*100);
+  const prev = d.pricePerSqm[d.pricePerSqm.length-2];
+  const yoy = ((last-prev)/prev*100);
+  const avgDays = Math.round(d.hoods.reduce((s,h)=>s+h.days,0)/d.hoods.length);
+  const gap = ((d.newBuild-d.secondHand)/d.secondHand*100);
+
+  const hoodRows = d.hoods.map(h=>`
+    <tr><td>${h.name}</td><td class="num">${h.days} ימים</td><td>${h.days<=50?'קצב מהיר':h.days<=65?'קצב בינוני':'קצב איטי'}</td></tr>
+  `).join('');
+
+  document.getElementById('analyticsBody').innerHTML = `
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="kpi-num">₪${last.toLocaleString('he-IL')}</div>
+        <div class="kpi-lbl">מחיר ממוצע למ"ר (אמצע 2026)</div>
+        <div class="kpi-trend ${yoy>=0?'up':'down'}">${yoy>=0?'▲':'▼'} ${Math.abs(yoy).toFixed(1)}% שנה אחרונה</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-num">${avgDays}</div>
+        <div class="kpi-lbl">זמן מדף ממוצע (ימים למכירה)</div>
+        <div class="kpi-trend ${avgDays<=55?'up':'down'}">${avgDays<=55?'שוק פעיל':'שוק איטי יחסית'}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-num">+${totalGrowth.toFixed(0)}%</div>
+        <div class="kpi-lbl">שינוי מצטבר במחיר למ"ר (2019 → 2026)</div>
+        <div class="kpi-trend up">מגמה רב-שנתית</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>מגמת מחיר ממוצע למ"ר — ${city}</h3>
+      <p class="panel-sub">₪ למ"ר, ממוצע עירוני, 2019 עד אמצע 2026 (נתוני דוגמה).</p>
+      ${lineChart(marketYears, d.pricePerSqm)}
+      <div class="chart-legend"><span><i style="background:#1F5C4E"></i>מחיר ממוצע למ"ר (₪)</span></div>
+    </div>
+
+    <div class="panel">
+      <h3>קצב מכירת דירות לפי שכונה — ${city}</h3>
+      <p class="panel-sub">זמן מדף ממוצע: מספר הימים הממוצע מרישום הנכס ועד סגירת עסקה.</p>
+      <table class="cmp-table">
+        <tr><th>שכונה</th><th>זמן מדף ממוצע</th><th>קצב</th></tr>
+        ${hoodRows}
+      </table>
+    </div>
+
+    <div class="panel">
+      <h3>יד שנייה מול חדש מקבלן — ${city}</h3>
+      <p class="panel-sub">מחיר ממוצע למ"ר, השוואה בין דירות יד שנייה לדירות חדשות מקבלן באותו אזור.</p>
+      <table class="cmp-table">
+        <tr><th>סוג נכס</th><th>מחיר ממוצע למ"ר</th><th>פער</th></tr>
+        <tr><td>יד שנייה</td><td class="num">₪${d.secondHand.toLocaleString('he-IL')}</td><td>—</td></tr>
+        <tr><td>חדש מקבלן</td><td class="num">₪${d.newBuild.toLocaleString('he-IL')}</td><td><span class="gap-pill">+${gap.toFixed(0)}% פרמיית קבלן</span></td></tr>
+      </table>
+    </div>
+  `;
+}
+
+document.querySelectorAll('.nav-item').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    if(btn.dataset.view==='leads') renderLeads();
+    if(btn.dataset.view==='analytics') initAnalytics();
+    if(btn.dataset.view==='map'){
+      initMap();
+      setTimeout(()=>map.invalidateSize(), 50);
+    }
+  });
+});
+
+renderChips();
+renderProperties();
+</script>
+
+</body>
+</html>

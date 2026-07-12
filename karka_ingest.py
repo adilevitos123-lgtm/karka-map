@@ -1,0 +1,20 @@
+import json, sqlite3  
+print("--- ???? ????: ???? ???? ????? ????? ????? ??? ---")  
+try:  
+    with open('toc_response.json', 'r', encoding='utf-8') as f: data = json.load(f)  
+    conn = sqlite3.connect('karka')  
+    c = conn.cursor()  
+    c.execute('''CREATE TABLE IF NOT EXISTS layers (id INTEGER PRIMARY KEY, layer_name TEXT, label TEXT, unique_id TEXT)''')  
+    items = data if isinstance(data, list) else data.get('layers', [])  
+    if not items and isinstance(data, dict):  
+        for k, v in data.items():  
+            if isinstance(v, list): items = v; break  
+    count = 0  
+    for item in items:  
+        name = item.get('layerName', ''); label = item.get('legendLabel', ''); uid = item.get('uniqueId', '')  
+        if name or label:  
+            c.execute("INSERT OR IGNORE INTO layers (layer_name, label, unique_id) VALUES (?, ?, ?)", (name, label, uid))  
+            count += 1  
+    conn.commit(); conn.close()  
+    print(f"???! ?????? ?????? ??????. {count} ????? ???? ?? ???? ??? ????? ?????? ?????-????!")  
+except Exception as e: print(f"???? ?????? ?????: {e}") 
