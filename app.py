@@ -35,7 +35,15 @@ def api_search():
 
 @app.route('/')
 def map_home():
-    m = folium.Map(location=[32.4833, 34.9833], zoom_start=14, control_scale=True)
+    # יצירת המפה עם הגדרות מלאות שמאפשרות זום ותזוזה חלקה
+    m = folium.Map(
+        location=[32.4833, 34.9833], 
+        zoom_start=14, 
+        control_scale=True,
+        zoom_control=True,
+        scrollWheelZoom=True,
+        dragging=True
+    )
     
     if os.path.exists('layers_data.geojson'):
         with open('layers_data.geojson', 'r', encoding='utf-8') as f:
@@ -49,6 +57,11 @@ def map_home():
         ).add_to(m)
 
     m.get_root().html.add_child(folium.Element("<script>window.mymap = null;</script>"))
+    
+    # הגדרת רוחב וגובה של 100% למפה הפנימית כדי שלא תיחתך על ידי ה-CSS של אתר הפרימיום
+    m.branca_by_id['folium_id'].width = '100%'
+    m.branca_by_id['folium_id'].height = '100%'
+    
     map_html = m._repr_html_()
     map_html = map_html.replace('var map_', 'window.mymap = map_')
     map_html = map_html.replace('L.map(\'map_', 'window.mymap = L.map(\'map_')
@@ -58,9 +71,11 @@ def map_home():
         with open(premium_file_path, 'r', encoding='utf-8') as f:
             html_page = f.read()
         
-        # הזרקה חכמה של המפה לתוך אלמנט המפה הקיים של המערכת שלך
-        if 'id="mapContainer"' in html_page:
-            html_page = html_page.replace('id="mapContainer">', 'id="mapContainer">' + map_html)
+        # החלפה חכמה של הדיב כולל סגירתו כדי למנוע כפל אלמנטים שחוסם את חווית המשתמש
+        if 'id="mapContainer"></div>' in html_page:
+            html_page = html_page.replace('id="mapContainer"></div>', f'id="mapContainer" style="position:relative; overflow:visible;">{map_html}</div>')
+        elif 'id="mapContainer">' in html_page:
+            html_page = html_page.replace('id="mapContainer">', f'id="mapContainer" style="position:relative; overflow:visible;">{map_html}')
         
         return render_template_string(html_page)
     else:
