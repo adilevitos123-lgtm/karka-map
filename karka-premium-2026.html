@@ -1354,14 +1354,15 @@ document.querySelectorAll(".nav-item").forEach(btn => {
     document.getElementById("view-" + btn.dataset.view).classList.add("active");
     if(btn.dataset.view === "leads") renderLeads();
     if(btn.dataset.view === "analytics") initAnalytics();
-    if(btn.dataset.view === "map"){
-      initMap();
-      setTimeout(() => { if(map) map.invalidateSize(); }, 60);
-    }
-  });
+  /*
+        if(btn.dataset.view === "map"){
+            initMap();
+            setTimeout(() => { if(map) map.invalidateSize(); }, 60);
+        }
+        */
+    });
 });
-
-/* ═══════════════ אתחול ═══════════════ */
+ ═══════════════ אתחול ═══════════════ */
 renderChips();
 renderGrid();
 </script>
