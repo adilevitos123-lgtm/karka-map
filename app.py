@@ -33,9 +33,9 @@ def api_search():
                 
     return jsonify({"status": "not_found", "message": "חלקה לא נמצאה באזור פרדס חנה"})
 
-# נתיב פנימי שמגיש רק את המפה החלקה והנקייה
 @app.route('/map-only')
 def map_only():
+    # יצירת המפה המדויקת שממוקדת ישירות בפרדס חנה ומאפשרת זום חופשי
     m = folium.Map(location=[32.4833, 34.9833], zoom_start=14, control_scale=True)
     
     if os.path.exists('layers_data.geojson'):
@@ -58,12 +58,16 @@ def map_home():
         with open(premium_file_path, 'r', encoding='utf-8') as f:
             html_page = f.read()
         
-        # הזרקת אלמנט iframe שמבודד את המפה ומאפשר זום ותנועה חלקים ב-100%
         iframe_tag = '<iframe src="/map-only" style="width:100%; height:100%; border:none; overflow:hidden;"></iframe>'
         
-        if 'id="mapContainer">' in html_page:
-            html_page = html_page.replace('id="mapContainer">', 'id="mapContainer">' + iframe_tag)
-        
+        # פתרון חלופי וגורף: נחפש את ה-mapContainer בכל וריאציה אפשרית ונזריק לתוכו את המפה החדשה
+        if 'id="mapContainer"' in html_page:
+            # פירוק ה-HTML לשני חלקים בדיוק במקום שבו האלמנט מתחיל, והזרקת המפה פנימה
+            parts = html_page.split('id="mapContainer"', 1)
+            # מציאה של סגירת התגית > הראשונה שאחרי ה-ID והזרקת ה-iframe מיד אחריה
+            subparts = parts[1].split('>', 1)
+            html_page = parts[0] + 'id="mapContainer"' + subparts[0] + '>' + iframe_tag + subparts[1]
+            
         return render_template_string(html_page)
     else:
         return f"Error: {premium_file_path} not found."
