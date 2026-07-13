@@ -21,48 +21,52 @@ def api_search():
 
 @app.route('/map-only')
 def map_only():
-    # מרכוז ארצי מלא עם זום היקפי
+    # יצירת מפה ארצית חלקה
     m = folium.Map(location=[31.5, 34.85], zoom_start=8, control_scale=True)
     
+    # 1. חיבור לשכבת התחדשות עירונית / פינוי בינוי מ-GIS משרד השיכון והבינוי
+    folium.WmsTileLayer(
+        url="https://wms.gov.il/govmap/wms",
+        layers="URBAN_RENEWAL",
+        fmt="image/png",
+        transparent=True,
+        name="התחדשות עירונית / פינוי בינוי",
+        overlay=True,
+        show=True
+    ).add_to(m)
+
+    # 2. חיבור לשכבת מבנים לשימור ומבנים מסוכנים (מערכת תכנון ארצית של מינהל התכנון)
+    folium.WmsTileLayer(
+        url="https://gis.inter.moin.gov.il/arcgis/services/Xplan/MapServer/WMSServer",
+        layers="Preservation_Buildings,Dangerous_Buildings",
+        fmt="image/png",
+        transparent=True,
+        name="מבנים לשימור ומסוכנים",
+        overlay=True,
+        show=True
+    ).add_to(m)
+
+    # אם קיים קובץ מקומי עבור עסקאות פריסייל מיוחדות שלך, נטען גם אותו
     if os.path.exists('layers_data.geojson'):
         with open('layers_data.geojson', 'r', encoding='utf-8') as f:
             geojson_data = json.load(f)
         
-        # פונקציה חכמה שקובעת את צבע הנכס לפי הסוג שלו בתוך ה-GeoJSON
         def style_by_property(feature):
             prop_type = feature['properties'].get('type', '').lower()
-            
-            # הגדרת צבעים (מתואם לריבוע ה-Legend שבאתר שלך)
             if 'presale' in prop_type or 'פריסייל' in prop_type:
-                color = '#ffc107'  # צהוב/אמבר לפריסייל
-            elif 'pinui' in prop_type or 'פינוי' in prop_type or 'התחדשות' in prop_type:
-                color = '#6f42c1'  # סגול לפינוי בינוי / התחדשות עירונית
-            else:
-                color = '#1D4ED8'  # כחול ברירת מחדל לנכסים רגילים/זמינים
-                
-            return {
-                'fillColor': color,
-                'color': color,
-                'weight': 2,
-                'fillOpacity': 0.6
-            }
-        
+                return {'fillColor': '#ffc107', 'color': '#ffc107', 'weight': 2, 'fillOpacity': 0.6}
+            return {'fillColor': '#1D4ED8', 'color': '#1D4ED8', 'weight': 1, 'fillOpacity': 0.4}
+
         folium.GeoJson(
             geojson_data,
-            name="שכבות נדלן ארציות",
+            name="פרויקטים ופריסייל בלעדיים",
             style_function=style_by_property,
-            tooltip=folium.GeoJsonTooltip(
-                fields=["name", "type"], 
-                aliases=["שם נכס/מגרש:", "סוג עסקה:"], 
-                localize=True
-            ),
-            popup=folium.GeoJsonPopup(
-                fields=["description"], 
-                aliases=["סטטוס משפטי:"], 
-                localize=True
-            )
+            tooltip=folium.GeoJsonTooltip(fields=["name"], aliases=["שם:"], localize=True)
         ).add_to(m)
-        
+
+    # הוספת בורר שכבות בפינת המפה שמאפשר למשתמש להדליק/לכבות כל שכבה
+    folium.LayerControl(position='topright', collapsed=False).add_to(m)
+    
     return m._repr_html_()
 
 @app.route('/')
