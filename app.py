@@ -6,23 +6,10 @@ from flask import Flask, render_template_string, jsonify, request
 
 app = Flask(__name__)
 
-def get_saved_layers():
-    layers = []
-    try:
-        conn = sqlite3.connect('karka.db')
-        c = conn.cursor()
-        query = "SELECT label, layer_name FROM layers WHERE layer_name IN ('mivnim_leShimur', 'parcels', 'tama8_pol_expire', 'Mivnim')"
-        layers = c.execute(query).fetchall()
-        conn.close()
-    except Exception as e:
-        print(f"Database error: {e}")
-    return layers
-
 @app.route('/api/search')
 def api_search():
     gush = request.args.get('gush')
     chelka = request.args.get('chelka')
-    
     if os.path.exists('layers_data.geojson'):
         with open('layers_data.geojson', 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -30,23 +17,50 @@ def api_search():
             props = feature.get('properties', {})
             if props.get('gush') == gush and props.get('chelka') == chelka:
                 return jsonify({"status": "success", "feature": feature})
-                
-    return jsonify({"status": "not_found", "message": "חלקה לא נמצאה באזור פרדס חנה"})
+    return jsonify({"status": "not_found"})
 
 @app.route('/map-only')
 def map_only():
-    # יצירת המפה המדויקת שממוקדת ישירות בפרדס חנה ומאפשרת זום חופשי
-    m = folium.Map(location=[32.4833, 34.9833], zoom_start=14, control_scale=True)
+    # מרכוז ארצי מלא עם זום היקפי
+    m = folium.Map(location=[31.5, 34.85], zoom_start=8, control_scale=True)
     
     if os.path.exists('layers_data.geojson'):
         with open('layers_data.geojson', 'r', encoding='utf-8') as f:
             geojson_data = json.load(f)
         
+        # פונקציה חכמה שקובעת את צבע הנכס לפי הסוג שלו בתוך ה-GeoJSON
+        def style_by_property(feature):
+            prop_type = feature['properties'].get('type', '').lower()
+            
+            # הגדרת צבעים (מתואם לריבוע ה-Legend שבאתר שלך)
+            if 'presale' in prop_type or 'פריסייל' in prop_type:
+                color = '#ffc107'  # צהוב/אמבר לפריסייל
+            elif 'pinui' in prop_type or 'פינוי' in prop_type or 'התחדשות' in prop_type:
+                color = '#6f42c1'  # סגול לפינוי בינוי / התחדשות עירונית
+            else:
+                color = '#1D4ED8'  # כחול ברירת מחדל לנכסים רגילים/זמינים
+                
+            return {
+                'fillColor': color,
+                'color': color,
+                'weight': 2,
+                'fillOpacity': 0.6
+            }
+        
         folium.GeoJson(
             geojson_data,
-            name="שכבות נדלן חמות",
-            tooltip=folium.GeoJsonTooltip(fields=["name"], aliases=["שם נכס/מגרש:"], localize=True),
-            popup=folium.GeoJsonPopup(fields=["description"], aliases=["סטטוס משפטי:"], localize=True)
+            name="שכבות נדלן ארציות",
+            style_function=style_by_property,
+            tooltip=folium.GeoJsonTooltip(
+                fields=["name", "type"], 
+                aliases=["שם נכס/מגרש:", "סוג עסקה:"], 
+                localize=True
+            ),
+            popup=folium.GeoJsonPopup(
+                fields=["description"], 
+                aliases=["סטטוס משפטי:"], 
+                localize=True
+            )
         ).add_to(m)
         
     return m._repr_html_()
@@ -57,20 +71,8 @@ def map_home():
     if os.path.exists(premium_file_path):
         with open(premium_file_path, 'r', encoding='utf-8') as f:
             html_page = f.read()
-        
-        iframe_tag = '<iframe src="/map-only" style="width:100%; height:100%; border:none; overflow:hidden;"></iframe>'
-        
-        # פתרון חלופי וגורף: נחפש את ה-mapContainer בכל וריאציה אפשרית ונזריק לתוכו את המפה החדשה
-        if 'id="mapContainer"' in html_page:
-            # פירוק ה-HTML לשני חלקים בדיוק במקום שבו האלמנט מתחיל, והזרקת המפה פנימה
-            parts = html_page.split('id="mapContainer"', 1)
-            # מציאה של סגירת התגית > הראשונה שאחרי ה-ID והזרקת ה-iframe מיד אחריה
-            subparts = parts[1].split('>', 1)
-            html_page = parts[0] + 'id="mapContainer"' + subparts[0] + '>' + iframe_tag + subparts[1]
-            
         return render_template_string(html_page)
-    else:
-        return f"Error: {premium_file_path} not found."
+    return "Error: File not found."
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
