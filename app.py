@@ -21,50 +21,49 @@ def api_search():
 
 @app.route('/map-only')
 def map_only():
-    # יצירת מפה ארצית חלקה
+    # יצירת המפה במיקוד ארצי מלא (מרכז המדינה, זום רחב)
     m = folium.Map(location=[31.5, 34.85], zoom_start=8, control_scale=True)
     
-    # 1. חיבור לשכבת התחדשות עירונית / פינוי בינוי מ-GIS משרד השיכון והבינוי
-    folium.WmsTileLayer(
-        url="https://wms.gov.il/govmap/wms",
-        layers="URBAN_RENEWAL",
-        fmt="image/png",
-        transparent=True,
-        name="התחדשות עירונית / פינוי בינוי",
+    # 1. חיבור ל-API הרשמי של התחדשות עירונית (פינוי בינוי ותמ"א) - מינהל התכנון
+    # משתמשים בשירות מפות דינמי מבוסס Esri שלא נחסם בדפדפנים
+    folium.TileLayer(
+        tiles='https://gis.inter.moin.gov.il/arcgis/rest/services/Xplan/MapServer/tile/{z}/{y}/{x}',
+        attr='מינהל התכנון - התחדשות עירונית',
+        name='התחדשות עירונית ופינוי בינוי (ארצי)',
         overlay=True,
-        show=True
+        control=True,
+        show=True,
+        opacity=0.75
     ).add_to(m)
 
-    # 2. חיבור לשכבת מבנים לשימור ומבנים מסוכנים (מערכת תכנון ארצית של מינהל התכנון)
-    folium.WmsTileLayer(
-        url="https://gis.inter.moin.gov.il/arcgis/services/Xplan/MapServer/WMSServer",
-        layers="Preservation_Buildings,Dangerous_Buildings",
-        fmt="image/png",
-        transparent=True,
-        name="מבנים לשימור ומסוכנים",
+    # 2. חיבור ל-API של שכבת מבנים לשימור ומבנים מסוכנים הרשמית
+    folium.TileLayer(
+        tiles='https://gis.inter.moin.gov.il/arcgis/rest/services/Public/MapServer/tile/{z}/{y}/{x}',
+        attr='מערכת GIS לאומית - מבנים לשימור ומסוכנים',
+        name='מבנים לשימור ומסוכנים',
         overlay=True,
-        show=True
+        control=True,
+        show=True,
+        opacity=0.7
     ).add_to(m)
 
-    # אם קיים קובץ מקומי עבור עסקאות פריסייל מיוחדות שלך, נטען גם אותו
+    # במידה ויש לך קובץ מקומי של עסקאות פריסייל/בלעדיות שלך, נטען אותו בצבע ייחודי
     if os.path.exists('layers_data.geojson'):
         with open('layers_data.geojson', 'r', encoding='utf-8') as f:
             geojson_data = json.load(f)
         
-        def style_by_property(feature):
-            prop_type = feature['properties'].get('type', '').lower()
-            if 'presale' in prop_type or 'פריסייל' in prop_type:
-                return {'fillColor': '#ffc107', 'color': '#ffc107', 'weight': 2, 'fillOpacity': 0.6}
-            return {'fillColor': '#1D4ED8', 'color': '#1D4ED8', 'weight': 1, 'fillOpacity': 0.4}
-
         folium.GeoJson(
             geojson_data,
             name="פרויקטים ופריסייל בלעדיים",
-            style_function=style_by_property,
-            tooltip=folium.GeoJsonTooltip(fields=["name"], aliases=["שם:"], localize=True)
+            style_function=lambda x: {
+                'fillColor': '#ffc107', # צבע אמבר/צהוב לפי מפתח הצבעים באתר שלך
+                'color': '#ffc107',
+                'weight': 2,
+                'fillOpacity': 0.6
+            }
         ).add_to(m)
 
-    # הוספת בורר שכבות בפינת המפה שמאפשר למשתמש להדליק/לכבות כל שכבה
+    # הוספת תפריט בורר השכבות בפינה הימנית העליונה של המפה
     folium.LayerControl(position='topright', collapsed=False).add_to(m)
     
     return m._repr_html_()
